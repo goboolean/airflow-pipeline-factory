@@ -8,9 +8,6 @@ fi
 S3_PREFIX="s3://flatfiles/us_stocks_sip/minute_aggs_v1/${YEAR}/${MONTH}/"
 GCS_PREFIX="gs://goboolean-452007-raw/stock/usa/${YEAR}/${MONTH}/"
 
-echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
-echo "GOOGLE_CREDENTIALS: ${GOOGLE_CREDENTIALS:0:50}..."  # 일부만 출력
-echo "Configuring AWS CLI with environment variables"
 aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
 aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
 
