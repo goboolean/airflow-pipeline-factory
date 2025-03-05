@@ -16,6 +16,7 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GCS_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
+
 @pytest.fixture(scope="module")
 def polygon_fetcher_container():
     docker_host = os.environ.get("DOCKER_HOST", "unix:///var/run/docker.sock")
@@ -60,6 +61,7 @@ def polygon_fetcher_container():
     yield container
     container.stop()
 
+
 def test_fetch_sample(polygon_fetcher_container):
     logs = polygon_fetcher_container.get_logs()
     print("Container logs:", logs)
@@ -78,6 +80,7 @@ def test_fetch_sample(polygon_fetcher_container):
         print("GCS ls failed. Checking local gsutil output:")
         os.system(f"gsutil ls {gcs_path} 2>&1")
     assert result == 0, "GCS에 파일 업로드 실패"
+
 
 if __name__ == "__main__":
     pytest.main(["-v"])
