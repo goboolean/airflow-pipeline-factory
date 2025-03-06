@@ -12,6 +12,14 @@ if [ -z "$GCS_BUCKET" ] || [ -z "$GCS_PATH" ]; then
     echo "Error: GCS_BUCKET and GCS_PATH environment variables must be set"
     exit 1
 fi
+if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+    echo "Error: AWS_ACCESS_KEY_ID environment variable must be set"
+    exit 1
+fi
+if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+    echo "Error: AWS_SECRET_ACCESS_KEY environment variable must be set"
+    exit 1
+fi
 
 S3_PREFIX="s3://${S3_BUCKET}/${S3_PATH}/${YEAR}/"
 GCS_PREFIX="gs://${GCS_BUCKET}/${GCS_PATH}/${YEAR}/"
@@ -25,20 +33,7 @@ echo "Configuring AWS CLI with environment variables"
 aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
 aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
 
-if [ -n "$GOOGLE_CREDENTIALS" ]; then
-    echo "Using GOOGLE_CREDENTIALS from environment variable"
-    echo "$GOOGLE_CREDENTIALS" > /tmp/gcp_credentials.json
-    export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_credentials.json
-else
-    echo "Error: GOOGLE_CREDENTIALS environment variable not set"
-    exit 1
-fi
-
-echo "Checking if GCS credential file exists:"
-ls -l "$GOOGLE_APPLICATION_CREDENTIALS" || echo "GCS credential file not generated"
-echo "Activating GCS service account:"
-gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" || echo "Failed to activate GCS service account"
-echo "Checking GCS auth:"
+echo "Checking GCS auth with Service Account:"
 gsutil ls "gs://${GCS_BUCKET}/" || echo "GCS auth failed but continuing"
 
 mkdir -p "$TEMP_DIR"
