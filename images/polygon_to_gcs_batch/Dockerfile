@@ -19,7 +19,7 @@ RUN curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cl
 ENV PATH="/google-cloud-sdk/bin:${PATH}"
 
 WORKDIR /app
-COPY fetch_test.sh .
-RUN chmod +x fetch_test.sh
+COPY polygon_to_gcs_batch.sh .
+RUN chmod +x polygon_to_gcs_batch.sh
 
 CMD ["bash", "./fetch_test.sh"]

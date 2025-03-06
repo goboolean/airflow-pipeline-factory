@@ -41,7 +41,7 @@ with DAG(
                 namespace="default",  # TODO: K8s 네임스페이스 설정 필요
                 image="polygon_fetcher:test",  # 커스텀 이미지
                 cmds=["bash"],
-                arguments=["fetch_test.sh"],
+                arguments=["polygon_to_gcs_batch.sh"],
                 env_vars={
                     "AWS_ACCESS_KEY_ID": AWS_ACCESS_KEY_ID,
                     "AWS_SECRET_ACCESS_KEY": AWS_SECRET_ACCESS_KEY,
