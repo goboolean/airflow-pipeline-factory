@@ -21,8 +21,6 @@ TEMP_DIR="/tmp/s3_downloads/${YEAR}"
 declare -a SUCCESS_MONTHS
 declare -a FAILED_MONTHS
 
-echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
-echo "GOOGLE_CREDENTIALS: ${GOOGLE_CREDENTIALS:0:50}..."
 echo "Configuring AWS CLI with environment variables"
 aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
 aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
