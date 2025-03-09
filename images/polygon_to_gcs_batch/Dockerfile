@@ -10,7 +10,7 @@ FROM python:latest
 # 작업 디렉토리 및 스크립트 설정
 WORKDIR /app
 COPY polygon_to_gcs_batch.sh .
-RUN chmod +x polygon_to_gcs_batch
+RUN chmod +x polygon_to_gcs_batch.sh
 
 # 기본 실행 명령어
-CMD ["./polygon_to_gcs_batch"]
+CMD ["bash", "/app/polygon_to_gcs_batch.sh"]
