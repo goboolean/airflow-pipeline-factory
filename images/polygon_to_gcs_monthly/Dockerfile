@@ -9,8 +9,8 @@ FROM python:latest
 
 # 작업 디렉토리 및 스크립트 설정
 WORKDIR /app
-COPY fetch_test.sh .
-RUN chmod +x fetch_test.sh
+COPY polygon_to_gcs_monthly.sh .
+RUN chmod +x polygon_to_gcs_monthly.sh
 
 # 기본 실행 명령어
-CMD ["./fetch_test.sh"]
+CMD ["./polygon_to_gcs_monthly.sh"]
