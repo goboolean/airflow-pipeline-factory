@@ -1,7 +1,11 @@
 #!/bin/bash
-# 필수 환경 변수 확인
+
+# 첫 번째 인자에서 YEAR 가져오기
+YEAR="$1"
+
+# 필수 입력값 및 환경 변수 확인
 if [ -z "$YEAR" ]; then
-    echo "Error: YEAR environment variable must be set"
+    echo "Error: YEAR must be provided as an argument (e.g., ./polygon_to_gcs_batch.sh 2023)"
     exit 1
 fi
 if [ -z "$AWS_ACCESS_KEY_ID" ]; then
