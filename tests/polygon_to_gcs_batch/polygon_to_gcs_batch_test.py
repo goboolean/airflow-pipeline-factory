@@ -13,10 +13,6 @@ YEAR = os.getenv("YEAR", "2025")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GCS_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
-S3_BUCKET = os.getenv("S3_BUCKET")
-S3_PATH = os.getenv("S3_PATH")
-GCS_BUCKET = os.getenv("GCS_BUCKET")
-GCS_PATH = os.getenv("GCS_PATH")
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +33,7 @@ def polygon_fetcher_container():
     image_name = "polygon_fetcher:test"
     build_path = os.path.abspath("../images/polygon_to_gcs_batch")
     print(f"Building Docker image from {build_path}...")
-    build_result = os.system(f"docker build --platform linux/arm64 -t {image_name} {build_path}")
+    build_result = os.system(f"docker buildx build --platform linux/arm64,linux/amd64 -t {image_name} {build_path}")
     if build_result != 0:
         raise Exception(f"Docker 이미지 빌드 실패: {build_result}")
 
@@ -46,14 +42,9 @@ def polygon_fetcher_container():
         .with_env("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID) \
         .with_env("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY) \
         .with_env("GOOGLE_CREDENTIALS", GCS_CREDENTIALS) \
-        .with_env("YEAR", YEAR) \
-        .with_env("S3_BUCKET", S3_BUCKET) \
-        .with_env("S3_PATH", S3_PATH) \
-        .with_env("GCS_BUCKET", GCS_BUCKET) \
-        .with_env("GCS_PATH", GCS_PATH)
+        .with_env("YEAR", YEAR)
     print("Set GOOGLE_CREDENTIALS:", container.env["GOOGLE_CREDENTIALS"][:50] + "...")
-    print(
-        f"Set YEAR: {YEAR}, S3_BUCKET: {S3_BUCKET}, S3_PATH: {S3_PATH}, GCS_BUCKET: {GCS_BUCKET}, GCS_PATH: {GCS_PATH}")
+    print(f"Set YEAR: {YEAR}")
 
     container.start()
 
@@ -73,15 +64,15 @@ def test_batch_processing(polygon_fetcher_container):
     log_str = logs[0].decode('utf-8') if logs[0] else ""
     print("Container logs:", log_str)
 
-    s3_prefix = f"Processing s3://{S3_BUCKET}/{S3_PATH}/{YEAR}/"
+    s3_prefix = f"Processing s3://flatfiles/us_stocks_sip/minute_aggs_v1/{YEAR}"
     assert s3_prefix in log_str, f"S3 prefix '{s3_prefix}'가 로그에 없습니다. S3 처리 실패."
 
-    success_line = f"Successful months ("
+    success_line = "Successful months ("
     assert success_line in log_str, "성공한 월에 대한 결과가 로그에 없습니다."
-    failed_line = f"Failed months ("
+    failed_line = "Failed months ("
     assert failed_line in log_str, "실패한 월에 대한 결과가 로그에 없습니다."
 
-    gcs_base_path = f"gs://{GCS_BUCKET}/{GCS_PATH}/{YEAR}/"
+    gcs_base_path = f"gs://goboolean-452007-raw/stock/usa/{YEAR}/"
     result = os.system(f"gsutil ls {gcs_base_path}")
     print(f"gsutil ls {gcs_base_path} exit code: {result}")
     if result == 0:
@@ -102,7 +93,8 @@ def test_container_exit_code(polygon_fetcher_container):
 def test_at_least_one_month_success(polygon_fetcher_container):
     logs = polygon_fetcher_container.get_logs()
     log_str = logs[0].decode('utf-8') if logs[0] else ""
-    success_count = int(log_str.split("Successful months (")[1].split(")")[0])
+    success_count = int(
+        log_str.split("Successful months (")[1].split(")")[0]) if "Successful months (" in log_str else 0
     print(f"Number of successful months: {success_count}")
     assert success_count > 0, "최소 하나의 월도 성공적으로 처리되지 않았습니다."
 
