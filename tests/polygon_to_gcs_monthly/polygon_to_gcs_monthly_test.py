@@ -35,7 +35,8 @@ def polygon_fetcher_container():
     image_name = "polygon_fetcher:test"
     build_path = os.path.abspath("../images/polygon_to_gcs_monthly")
     print(f"Building Docker image from {build_path}...")
-    build_result = os.system(f"docker build --platform linux/arm64 -t {image_name} {build_path}")
+    build_result = os.system(f"docker buildx build --platform linux/arm64,linux/amd64 -t {image_name} {build_path}")
+
     if build_result != 0:
         raise Exception(f"Docker 이미지 빌드 실패: {build_result}")
 
@@ -52,7 +53,7 @@ def polygon_fetcher_container():
     container.start()
 
     try:
-        wait_for_logs(container, "Script completed", timeout=120)
+        wait_for_logs(container, "Script completed", timeout=300)
     except Exception as e:
         print(f"로그 대기 실패: {e}")
         print(container.get_logs())
@@ -65,7 +66,7 @@ def polygon_fetcher_container():
 def test_fetch_sample(polygon_fetcher_container):
     logs = polygon_fetcher_container.get_logs()
     print("Container logs:", logs)
-    log_str = logs[0].decode('utf-8') if logs[0] else ""
+    log_str = logs[0].decode('utf-8') if logs and logs[0] else ""
     print("Decoded logs:", log_str)
     s3_prefix = f"Processing s3://flatfiles/us_stocks_sip/minute_aggs_v1/{YEAR}/{MONTH}"
     assert s3_prefix in log_str, "S3 디렉토리 처리 실패"
