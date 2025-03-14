@@ -15,6 +15,7 @@ MONTH = "02"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GCS_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
+ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 
 @pytest.fixture(scope="module")
@@ -45,9 +46,11 @@ def polygon_fetcher_container():
         .with_env("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID) \
         .with_env("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY) \
         .with_env("GOOGLE_CREDENTIALS", GCS_CREDENTIALS) \
+        .with_env("ENVIRONMENT", ENVIRONMENT) \
         .with_env("YEAR", YEAR) \
         .with_env("MONTH", MONTH)
     print("Set GOOGLE_CREDENTIALS:", container.env["GOOGLE_CREDENTIALS"][:50] + "...")  # 일부만 출력
+    print(f'ENVIRONMENT: {container.env["ENVIRONMENT"]}')
     print(f"Set YEAR: {YEAR}, MONTH: {MONTH}")
 
     container.start()
