@@ -1,30 +1,47 @@
 #!/bin/bash
 
-# YEAR는 인자 또는 환경 변수로 받기
-YEAR="${1:-$YEAR}"
-if [ -z "$YEAR" ]; then
-    echo "Error: YEAR must be provided as an argument or environment variable"
-    exit 1
-fi
-if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-    echo "Error: AWS_ACCESS_KEY_ID environment variable must be set"
-    exit 1
-fi
-if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-    echo "Error: AWS_SECRET_ACCESS_KEY environment variable must be set"
-    exit 1
-fi
+# 인증 설정 함수
+setup_gcs_auth() {
+    if [ "$ENVIRONMENT" = "production" ]; then
+        echo "Production mode: Skipping GCS auth (handled by Kubernetes)"
+    else
+        echo "Local mode: Setting up GCS auth"
+        if [ -n "$GOOGLE_CREDENTIALS" ]; then
+            echo "$GOOGLE_CREDENTIALS" > /tmp/gcp_credentials.json
+            gcloud auth activate-service-account --key-file=/tmp/gcp_credentials.json || { echo "GCS auth failed"; exit 1; }
+            export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_credentials.json
+        else
+            echo "Error: GOOGLE_CREDENTIALS must be set in local mode"
+            exit 1
+        fi
+    fi
+}
 
+setup_aws_auth() {
+    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+        echo "Error: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set"
+        exit 1
+    fi
+    echo "Configuring AWS CLI with environment variables"
+    aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+    aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+}
+
+validate_env_variables() {
+    # YEAR는 인자 또는 환경 변수로 받기
+    YEAR="${1:-$YEAR}"
+    if [ -z "$YEAR" ]; then
+        echo "Error: YEAR must be provided as an argument or environment variable"
+        exit 1
+    fi
+}
+
+# 환경변수 확인
+validate_env_variables
+# AWS 인증 설정
+setup_aws_auth
 # GCS 인증 설정
-if [ -n "$GOOGLE_CREDENTIALS" ]; then
-    echo "Using GCS_CREDENTIALS from environment variable"
-    echo "$GOOGLE_CREDENTIALS" > /tmp/gcp_credentials.json
-    gcloud auth activate-service-account --key-file=/tmp/gcp_credentials.json || { echo "GCS auth failed"; exit 1; }
-    export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_credentials.json
-else
-    echo "Error: $GOOGLE_CREDENTIALS environment variable must be set"
-    exit 1
-fi
+setup_gcs_auth
 
 # 경로 하드코딩
 TEMP_DIR="/tmp/s3_downloads/${YEAR}"
@@ -32,10 +49,6 @@ TEMP_DIR="/tmp/s3_downloads/${YEAR}"
 # 성공/실패한 달을 추적하기 위한 배열
 declare -a SUCCESS_MONTHS
 declare -a FAILED_MONTHS
-
-echo "Configuring AWS CLI with environment variables"
-aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
-aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
 
 echo "Checking GCS auth:"
 gsutil ls "gs://goboolean-452007-raw/" || echo "GCS auth failed but continuing"
