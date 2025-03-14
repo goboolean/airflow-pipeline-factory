@@ -1,16 +1,17 @@
-# Google Cloud SDK 베이스 이미지 (멀티-아키텍처 지원)
-FROM google/cloud-sdk:latest AS gcloud-stage
+FROM python:3.9-slim
 
-# AWS CLI 베이스 이미지 (멀티-아키텍처 지원)
-FROM amazon/aws-cli:latest AS aws-stage
+RUN apt-get update && apt-get install -y \
+    bash gzip \
+    && rm -rf /var/lib/apt/lists/*
 
-# 최종 이미지 구성
-FROM python:latest
+COPY --from=google/cloud-sdk:slim /usr/lib/google-cloud-sdk /usr/lib/google-cloud-sdk
+ENV PATH="/usr/lib/google-cloud-sdk/bin:${PATH}"
 
-# 작업 디렉토리 및 스크립트 설정
+COPY --from=amazon/aws-cli:latest /usr/local/aws-cli /usr/local/aws-cli
+ENV PATH="/usr/local/aws-cli/v2/current/bin:${PATH}"
+
 WORKDIR /app
 COPY polygon_to_gcs_monthly.sh .
 RUN chmod +x polygon_to_gcs_monthly.sh
 
-# 기본 실행 명령어
-CMD ["./polygon_to_gcs_monthly.sh"]
+CMD ["bash", "./polygon_to_gcs_monthly.sh"]
