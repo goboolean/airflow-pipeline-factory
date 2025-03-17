@@ -19,6 +19,11 @@ setup_gcs_auth() {
             exit 1
         fi
     fi
+
+    echo "Checking if GCS credential file exists:"
+    ls -l "$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo "Credential file not generated"
+    echo "Activating GCS service account:"
+    gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo "Failed to activate GCS service account"
 }
 
 setup_aws_auth() {
@@ -53,10 +58,6 @@ setup_gcs_auth
 S3_PREFIX="s3://flatfiles/us_stocks_sip/minute_aggs_v1/${YEAR}/${MONTH}/"
 GCS_PREFIX="gs://goboolean-452007-raw/stock/usa/${YEAR}/${MONTH}/"
 
-echo "Checking if GCS credential file exists:"
-ls -l "$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo "Credential file not generated"
-echo "Activating GCS service account:"
-gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo "Failed to activate GCS service account"
 echo "Checking GCS auth:"
 gsutil ls gs://goboolean-452007-raw/ 2>&1 || echo "GCS auth failed but continuing"
 echo "Processing ${S3_PREFIX}"
@@ -105,6 +106,7 @@ if [ $? -ne 0 ]; then
     cat "/tmp/gsutil_${DAY_FILE}.log"
     exit 1
 fi
+
 rm "/tmp/temp_${DAY_FILE}"
 echo "Successfully transferred ${DAY_FILE}"
 
