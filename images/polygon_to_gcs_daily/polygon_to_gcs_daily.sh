@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# 인자로 YEAR, MONTH, DAY 받기
+YEAR=$1
+MONTH=$2
+DAY=$3
+
 setup_gcs_auth() {
     if [ "$ENVIRONMENT" = "production" ]; then
         echo "Production mode: Skipping GCS auth (handled by Kubernetes)"
@@ -27,7 +32,7 @@ setup_aws_auth() {
 
 validate_env_variables() {
     if [ -z "$YEAR" ] || [ -z "$MONTH" ] || [ -z "$DAY" ]; then
-        echo "Error: YEAR, MONTH, and DAY environment variables must be set"
+        echo "Error: YEAR, MONTH, and DAY must be provided as arguments"
         exit 1
     fi
     # 날짜 형식 검증
@@ -37,7 +42,7 @@ validate_env_variables() {
     fi
 }
 
-# 환경변수 확인
+# 환경변수 확인 (인자로 받은 값 검증)
 validate_env_variables
 # AWS 인증 설정
 setup_aws_auth
@@ -49,7 +54,7 @@ S3_PREFIX="s3://flatfiles/us_stocks_sip/minute_aggs_v1/${YEAR}/${MONTH}/"
 GCS_PREFIX="gs://goboolean-452007-raw/stock/usa/${YEAR}/${MONTH}/"
 
 echo "Checking if GCS credential file exists:"
-ls -l "$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo " différence file not generated"
+ls -l "$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo "Credential file not generated"
 echo "Activating GCS service account:"
 gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 || echo "Failed to activate GCS service account"
 echo "Checking GCS auth:"
