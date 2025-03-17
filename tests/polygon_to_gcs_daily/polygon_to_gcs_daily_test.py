@@ -48,17 +48,15 @@ def polygon_fetcher_container():
         .with_env("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY) \
         .with_env("GOOGLE_CREDENTIALS", GCS_CREDENTIALS) \
         .with_env("ENVIRONMENT", ENVIRONMENT) \
-        .with_env("YEAR", YEAR) \
-        .with_env("MONTH", MONTH) \
-        .with_env("DAY", DAY)
+        .with_command(["bash", "/app/polygon_to_gcs_daily.sh", YEAR, MONTH, DAY])  # 인자로 YEAR, MONTH, DAY 전달
     print("Set GOOGLE_CREDENTIALS:", container.env["GOOGLE_CREDENTIALS"][:50] + "...")
     print(f'ENVIRONMENT: {container.env["ENVIRONMENT"]}')
-    print(f"Set YEAR: {YEAR}, MONTH: {MONTH}, DAY: {DAY}")
+    print(f"Command: bash /app/polygon_to_gcs_daily.sh {YEAR} {MONTH} {DAY}")
 
     container.start()
 
     try:
-        wait_for_logs(container, "Script completed", timeout=300)
+        wait_for_logs(container, "Script completed", timeout=180)
     except Exception as e:
         print(f"로그 대기 실패: {e}")
         print(container.get_logs())
