@@ -13,3 +13,6 @@ ENV PATH="/usr/local/aws-cli/v2/current/bin:${PATH}"
 WORKDIR /app
 COPY polygon_to_gcs_daily.sh .
 RUN chmod +x polygon_to_gcs_daily.sh
+
+
+ENTRYPOINT ["./polygon_to_gcs_daily.sh"]
