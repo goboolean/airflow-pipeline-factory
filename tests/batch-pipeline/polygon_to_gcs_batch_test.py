@@ -32,7 +32,7 @@ def polygon_fetcher_container():
         raise ValueError("GOOGLE_CREDENTIALS 환경 변수가 설정되지 않았습니다. .env 파일을 확인하세요.")
 
     image_name = "polygon_fetcher:test"
-    build_path = os.path.abspath("../images/polygon_to_gcs_batch")
+    build_path = os.path.abspath("../../images/batch-pipeline/polygon_to_gcs_batch")
     print(f"Building Docker image from {build_path}...")
     build_result = os.system(f"docker buildx build --platform linux/arm64,linux/amd64 -t {image_name} {build_path}")
     if build_result != 0:
