@@ -35,12 +35,9 @@ def upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influ
     source_bucket_name = "goboolean-452007-resampled"
     # 모든 주기의 데이터를 처리하며, 정규화된 파일은 모두 _norm 접미사를 사용합니다.
     periods = ["1m", "5m", "10m", "15m", "30m", "1h", "4h", "1d"]
-    try:
-        client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
-        write_api = client.write_api(write_options=SYNCHRONOUS)
-    except Exception as e:
-        logger.error(f"Failed to initialize InfluxDB client: {e}")
-        raise
+    client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
+    write_api = client.write_api(write_options=SYNCHRONOUS)
+
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             for period in periods:
@@ -82,24 +79,4 @@ if __name__ == "__main__":
             "Usage: python upload_to_influxdb.py <year> <month> <day> <ticker> <influx_url> <influx_token> <influx_org> <influx_bucket>")
         sys.exit(1)
     year, month, day, ticker, influx_url, influx_token, influx_org, influx_bucket = sys.argv[1:9]
-    
-    # Validate date components
-    try:
-        year, month, day = int(year), int(month), int(day)
-        # Basic date validation
-        if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31):
-            logger.error(f"Invalid date: {year}-{month}-{day}")
-            sys.exit(1)
-    except ValueError:
-        logger.error("Year, month, and day must be integers")
-        sys.exit(1)
-        
-    # Validate URL format
-    if not influx_url.startswith(("http://", "https://")):
-        logger.error(f"Invalid InfluxDB URL format: {influx_url}")
-        sys.exit(1)
-        
-    # Convert back to strings for consistent handling in the function
-    year, month, day = str(year), str(month), str(day)
-    
     upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influx_org, influx_bucket)

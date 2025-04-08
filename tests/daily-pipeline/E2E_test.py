@@ -21,6 +21,7 @@ handler.setFormatter(formatter)
 logger.handlers = [handler]
 
 
+# ===== Arrange: 환경 및 의존성 설정 =====
 @pytest.fixture(scope="session")
 def docker_client():
     client = docker.from_env()
@@ -253,20 +254,21 @@ def build_images(docker_client):
     return images
 
 
+# ===== Act & Assert: 테스트 실행 및 검증 =====
 def test_end_to_end_pipeline(test_env, sample_data, build_images, docker_client):
-    # ARRANGE: 준비 단계 - 테스트 데이터를 설정하고, 필요한 파라미터들을 추출
+    # Arrange
     client, network = docker_client
     year, month, day = sample_data["year"], sample_data["month"], sample_data["day"]
-    ticker = sample_data["tickers"][0]  # "AAPL"
+    ticker = sample_data["tickers"][0]  # AAPL
     logger.info(f"Starting E2E test for {year}-{month}-{day}, ticker: {ticker}")
     storage_client = storage.Client(client_options={"api_endpoint": test_env["host_gcs_endpoint"]})
     bucket = storage_client.bucket("goboolean-452007-resampled")
     extra_hosts = {"host.docker.internal": "host-gateway"}
 
-    # ACT: 실행 단계
-    # 1. Split Ticker 컨테이너 실행 및 결과 확인
+    # Act
+    # 1. Split Ticker 컨테이너 실행
     logger.info("Running split_ticker container...")
-    split_ticker_container = client.containers.run(
+    split_container = client.containers.run(
         build_images["split_ticker"],
         command=[year, month, day],
         environment=test_env["env"],
@@ -274,17 +276,14 @@ def test_end_to_end_pipeline(test_env, sample_data, build_images, docker_client)
         extra_hosts=extra_hosts,
         detach=True
     )
-    split_logs = []
-    for line in split_ticker_container.logs(stream=True):
-        split_logs.append(line.decode('utf-8').strip())
-    exit_code = split_ticker_container.wait()["StatusCode"]
-    if exit_code != 0:
-        pytest.fail(f"split_ticker failed with exit code {exit_code}. Logs:\n" + "\n".join(split_logs))
+    split_logs = [line.decode('utf-8').strip() for line in split_container.logs(stream=True)]
+    if split_container.wait()["StatusCode"] != 0:
+        pytest.fail(f"split_ticker failed. Logs:\n{chr(10).join(split_logs)}")
     split_blob_path = f"stock/usa/{ticker}/1m/{year}/{month}/{ticker}_{year}-{month}-{day}_1m.csv.gz"
 
-    # 2. Resample Ticker 컨테이너 실행 및 결과 파일 업로드 확인
+    # 2. Resample Ticker 컨테이너 실행
     logger.info("Running resample_ticker container...")
-    resample_ticker_container = client.containers.run(
+    resample_container = client.containers.run(
         build_images["resample_ticker"],
         command=[year, month, day, ticker],
         environment=test_env["env"],
@@ -292,16 +291,13 @@ def test_end_to_end_pipeline(test_env, sample_data, build_images, docker_client)
         extra_hosts=extra_hosts,
         detach=True
     )
-    resample_logs = []
-    for line in resample_ticker_container.logs(stream=True):
-        resample_logs.append(line.decode('utf-8').strip())
-    exit_code = resample_ticker_container.wait()["StatusCode"]
-    if exit_code != 0:
-        pytest.fail(f"resample_ticker failed with exit code {exit_code}. Logs:\n" + "\n".join(resample_logs))
+    resample_logs = [line.decode('utf-8').strip() for line in resample_container.logs(stream=True)]
+    if resample_container.wait()["StatusCode"] != 0:
+        pytest.fail(f"resample_ticker failed. Logs:\n{chr(10).join(resample_logs)}")
 
     # 3. Upload to InfluxDB 컨테이너 실행
     logger.info("Running upload_to_influxdb container...")
-    upload_influx_container = client.containers.run(
+    upload_container = client.containers.run(
         build_images["upload_to_influxdb"],
         command=[
             year, month, day, ticker,
@@ -313,34 +309,35 @@ def test_end_to_end_pipeline(test_env, sample_data, build_images, docker_client)
         extra_hosts=extra_hosts,
         detach=True
     )
-    upload_logs = []
-    for line in upload_influx_container.logs(stream=True):
-        upload_logs.append(line.decode('utf-8').strip())
-    exit_code = upload_influx_container.wait()["StatusCode"]
-    if exit_code != 0:
-        pytest.fail(f"upload_to_influxdb failed with exit code {exit_code}. Logs:\n" + "\n".join(upload_logs))
+    upload_logs = [line.decode('utf-8').strip() for line in upload_container.logs(stream=True)]
+    if upload_container.wait()["StatusCode"] != 0:
+        pytest.fail(f"upload_to_influxdb failed. Logs:\n{chr(10).join(upload_logs)}")
 
-    # ASSERT: 검증 단계
+    # Assert
     # A. split_ticker 결과 검증
     assert bucket.blob(split_blob_path).exists(), "split_ticker did not produce the expected blob."
     logger.info(f"split_ticker produced: {split_blob_path}")
 
     # B. resample_ticker 결과 검증 (모든 주기는 '_norm' 접미사 사용)
     for period in ["1m", "5m", "10m", "15m", "30m", "1h", "4h", "1d"]:
-        resampled_blob_path = f"stock/usa/{ticker}/{period}_norm/{year}/{month}/{ticker}_{year}-{month}-{day}_{period}_norm.csv.gz"
-        assert bucket.blob(
-            resampled_blob_path).exists(), f"resample_ticker did not produce the expected blob for period: {period}"
+        norm_blob_path = f"stock/usa/{ticker}/{period}_norm/{year}/{month}/{ticker}_{year}-{month}-{day}_{period}_norm.csv.gz"
+        assert bucket.blob(norm_blob_path).exists(), f"resample_ticker missing blob for period: {period}"
     logger.info("All resample_ticker blobs verified.")
 
     # C. InfluxDB 데이터 검증
     logger.info("Verifying data in InfluxDB...")
-    client_influx = InfluxDBClient(url=test_env["host_influx_url"],
-                                   token=test_env["influx_token"],
-                                   org=test_env["influx_org"])
+    client_influx = InfluxDBClient(
+        url=test_env["host_influx_url"],
+        token=test_env["influx_token"],
+        org=test_env["influx_org"]
+    )
     try:
-        time.sleep(3)
-        query = f'from(bucket:"{test_env["influx_bucket"]}") |> range(start: 2023-01-01T00:00:00Z, stop: 2023-01-02T00:00:00Z) ' \
-                f'|> filter(fn:(r) => r._measurement == "stock_price" and r.ticker == "{ticker}")'
+        time.sleep(5)  # 데이터 반영을 위해 대기 시간 5초
+        query = (
+            f'from(bucket:"{test_env["influx_bucket"]}") '
+            f'|> range(start: 2023-01-01T00:00:00Z, stop: 2023-01-02T00:00:00Z) '
+            f'|> filter(fn:(r) => r._measurement == "stock_price" and r.ticker == "{ticker}")'
+        )
         tables = client_influx.query_api().query(query)
         assert len(tables) > 0, "No data was returned from InfluxDB."
         assert any(record.get_value() for table in tables for record in table.records), "InfluxDB data is empty."
