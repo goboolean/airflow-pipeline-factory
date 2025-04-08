@@ -35,8 +35,12 @@ def upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influ
     source_bucket_name = "goboolean-452007-resampled"
     # 모든 주기의 데이터를 처리하며, 정규화된 파일은 모두 _norm 접미사를 사용합니다.
     periods = ["1m", "5m", "10m", "15m", "30m", "1h", "4h", "1d"]
-    client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
-    write_api = client.write_api(write_options=SYNCHRONOUS)
+    try:
+        client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+    except Exception as e:
+        logger.error(f"Failed to initialize InfluxDB client: {e}")
+        raise
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
