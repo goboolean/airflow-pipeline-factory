@@ -20,7 +20,6 @@ def upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influ
     storage_client_options = {"api_endpoint": os.environ.get("STORAGE_EMULATOR_HOST")} if os.environ.get(
         "STORAGE_EMULATOR_HOST") else {}
 
-    # GCS 클라이언트 초기화
     if creds_json:
         logger.info("Using GOOGLE_CREDENTIALS from environment")
         try:
@@ -34,8 +33,7 @@ def upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influ
         storage_client = storage.Client(client_options=storage_client_options)
 
     source_bucket_name = "goboolean-452007-resampled"
-
-    # 모든 주기의 데이터를 업로드
+    # 모든 주기의 데이터를 처리하며, 정규화된 파일은 모두 _norm 접미사를 사용합니다.
     periods = ["1m", "5m", "10m", "15m", "30m", "1h", "4h", "1d"]
     client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
     write_api = client.write_api(write_options=SYNCHRONOUS)
@@ -43,24 +41,19 @@ def upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influ
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             for period in periods:
-                source_path = f"stock/usa/{ticker}/{period}/{year}/{month}/{ticker}_{year}-{month}-{day}"
-                source_path += f"_{period}.csv.gz" if period != "1m" else ".csv.gz"
-
+                source_path = f"stock/usa/{ticker}/{period}_norm/{year}/{month}/{ticker}_{year}-{month}-{day}_{period}_norm.csv.gz"
                 source_bucket = storage_client.bucket(source_bucket_name)
                 blob = source_bucket.blob(source_path)
-
                 if not blob.exists():
                     logger.warning(f"File not found: gs://{source_bucket_name}/{source_path}")
                     continue
 
-                local_file = os.path.join(temp_dir, f"{ticker}_{year}-{month}-{day}_{period}.csv.gz")
+                local_file = os.path.join(temp_dir, f"{ticker}_{year}-{month}-{day}_{period}_norm.csv.gz")
                 blob.download_to_filename(local_file)
 
-                # InfluxDB에 데이터 업로드
                 with gzip.open(local_file, 'rt') as f:
                     df = pd.read_csv(f)
                     df["window_start"] = pd.to_datetime(df["window_start"])
-
                     points = [
                         Point("stock_price")
                         .tag("ticker", ticker)
@@ -73,7 +66,6 @@ def upload_to_influxdb(year, month, day, ticker, influx_url, influx_token, influ
                         .time(int(row["window_start"].timestamp() * 1000000000))
                         for _, row in df.iterrows()
                     ]
-
                     write_api.write(bucket=influx_bucket, record=points)
                     logger.info(f"Uploaded {period} data to InfluxDB: {ticker} for {year}-{month}-{day}")
     finally:
